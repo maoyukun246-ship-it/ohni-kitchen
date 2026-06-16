@@ -1,17 +1,49 @@
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
-import { type ComponentPropsWithoutRef, type ElementRef, forwardRef } from "react";
+import {
+  type ComponentPropsWithoutRef,
+  type ElementRef,
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+} from "react";
 import { cn } from "@/lib/utils";
 
 const ScrollArea = forwardRef<
   ElementRef<typeof ScrollAreaPrimitive.Root>,
   ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root>
->(({ className, children, ...props }, ref) => (
-  <ScrollAreaPrimitive.Root ref={ref} className={cn("relative overflow-hidden", className)} {...props}>
-    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">{children}</ScrollAreaPrimitive.Viewport>
-    <ScrollBar />
-    <ScrollAreaPrimitive.Corner />
-  </ScrollAreaPrimitive.Root>
-));
+>(({ className, children, onWheel, ...props }, ref) => {
+  const rootRef = useRef<ElementRef<typeof ScrollAreaPrimitive.Root>>(null);
+
+  useImperativeHandle(ref, () => rootRef.current as ElementRef<typeof ScrollAreaPrimitive.Root>);
+
+  return (
+    <ScrollAreaPrimitive.Root
+      ref={rootRef}
+      className={cn("relative overflow-hidden", className)}
+      onWheel={(event) => {
+        onWheel?.(event);
+        if (event.defaultPrevented || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+          return;
+        }
+
+        const viewport = rootRef.current?.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]");
+        if (!viewport) {
+          return;
+        }
+
+        viewport.scrollTop += event.deltaY;
+        event.preventDefault();
+      }}
+      {...props}
+    >
+      <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
+        {children}
+      </ScrollAreaPrimitive.Viewport>
+      <ScrollBar />
+      <ScrollAreaPrimitive.Corner />
+    </ScrollAreaPrimitive.Root>
+  );
+});
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName;
 
 const ScrollBar = forwardRef<
